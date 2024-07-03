@@ -1,37 +1,56 @@
-use aes::{cipher::KeyInit, Aes128};
-use aes_gcm;
-use libaes::Cipher;
-use pbkdf2::{pbkdf2, pbkdf2_hmac};
+use aes::cipher::KeyInit;
+use aes_gcm::{aead::Aead, Aes256Gcm, Nonce};
+use pbkdf2::pbkdf2_hmac;
 use rand::prelude::*;
 use rpassword::read_password;
 use sha2::Sha256;
 use std::{fs, io::Write, path::Path, process::exit};
 
-pub fn encrypt(filepath: &str, passwd: String) {
-    let source = fs::read_to_string(filepath).unwrap();
-
+pub fn encrypt(filepath: &str, passwd: String) -> Result<(), Box<dyn std::error::Error>> {
+    let source = fs::read(filepath)?;
     let mut rng = thread_rng();
-    let mut nonce = [0u8; 12];
-    for i in 0..12 {
-        nonce[i] = rng.gen();
-    }
+    let mut salt = [0u8; 16];
+    rng.fill_bytes(&mut salt);
 
-    let mut der_key = [0u8; 32];
-    pbkdf2_hmac::<Sha256>(passwd.as_bytes(), &nonce, 4096, &mut der_key);
+    let mut key = [0u8; 32];
+    pbkdf2_hmac::<Sha256>(passwd.as_bytes(), &salt, 100_000, &mut key);
 
-    let cipher = Cipher::new_256(&der_key);
+    let cipher = Aes256Gcm::new(key.as_slice().into());
+    let nonce = Nonce::from_slice(&salt[..12]);
 
-    let cipher = Cipher::aes_256_cbc();
-    let mut encrypter = Crypter::new(cipher, Mode::Encrypt, key, Some(iv)).unwrap();
+    let encrypted_data = cipher
+        .encrypt(nonce, source.as_ref())
+        .map_err(|e| format!("Encryption failed: {:?}", e))?;
 
-    let block_size = cipher.block_size();
-    let mut encrypted_data = vec![0; text.len() + block_size];
-    let count = encrypter.update(text, &mut encrypted_data).unwrap();
-    let rest = encrypter.finalize(&mut encrypted_data[count..]).unwrap();
-    encrypted_data.truncate(count + rest);
+    let mut output = Vec::new();
+    output.extend_from_slice(&salt);
+    output.extend_from_slice(&encrypted_data);
+
+    fs::write(filepath, output)?;
+    Ok(())
 }
 
-pub fn decrypt(filepath: &str, passwd: String) {}
+pub fn decrypt(filepath: &str, passwd: String) -> Result<(), Box<dyn std::error::Error>> {
+    let data = fs::read(filepath)?;
+
+    if data.len() < 16 {
+        return Err("File is too short to be a valid encrypted file".into());
+    }
+
+    let (salt, encrypted_data) = data.split_at(16);
+    let mut key = [0u8; 32];
+    pbkdf2_hmac::<Sha256>(passwd.as_bytes(), salt, 100_000, &mut key);
+
+    let cipher = Aes256Gcm::new(key.as_slice().into());
+    let nonce = Nonce::from_slice(&salt[..12]);
+
+    let decrypted_data = cipher
+        .decrypt(nonce, encrypted_data)
+        .map_err(|e| format!("Decryption failed: {:?}", e))?;
+
+    fs::write(filepath, decrypted_data)?;
+    Ok(())
+}
 
 pub fn get_password() -> String {
     println!("Enter password for encryption");
@@ -42,11 +61,9 @@ pub fn set_password() -> String {
     println!("Enter password for encryption");
     std::io::stdout().flush().unwrap();
     let passwd = read_password().unwrap();
-
     println!("Confirm the password");
     std::io::stdout().flush().unwrap();
     let passwd_confirm = read_password().unwrap();
-
     if passwd != passwd_confirm {
         println!("Passwords do not match");
         exit(1);

@@ -1,7 +1,5 @@
-use std::{env, process::exit};
-
 use file_encryptor::{decrypt, encrypt, file_exists, get_password, set_password};
-use rand::{thread_rng, Rng};
+use std::{env, process::exit};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -26,8 +24,11 @@ fn encrypt_handle(filepath: &str) {
     }
     let passwd = set_password();
     println!("Encrypting your file....");
-    encrypt(filepath, passwd);
-    println!("{filepath} has been encrypted successfully");
+    if encrypt(filepath, passwd).is_ok() {
+        println!("{filepath} has been encrypted successfully");
+    } else {
+        println!("There is some issue with the file {filepath}");
+    }
 }
 
 fn decrypt_handle(filepath: &str) {
@@ -37,8 +38,11 @@ fn decrypt_handle(filepath: &str) {
     }
     let passwd = get_password();
     println!("Decrypting your file....");
-    decrypt(filepath, passwd);
-    println!("{filepath} has been decrypted successfully");
+    if decrypt(filepath, passwd).is_ok() {
+        println!("{filepath} has been decrypted successfully");
+    } else {
+        println!("{filepath} isn't a valid encrypted file");
+    }
 }
 
 fn print_help() {
