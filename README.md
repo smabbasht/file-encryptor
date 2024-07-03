@@ -1,6 +1,6 @@
-# Crypt
+# Crypt  🔐
 
-### A simple file-encryptor written in Rust
+### A simple file-encryptor written in Rust 🦀
 
 This package uses the **Advanced Encryption Standard** (AES) for file encryption and decryption, It does so by leveraging the **Password-based-key-derivation-function v2** (PKBFD2) for acquiring a key based on the provided password and randomized nonce. It then uses a `AES256Cipher` to encrypt or decrypt the files. The whole program is written in rust. 
 
