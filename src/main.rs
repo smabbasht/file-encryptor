@@ -1,4 +1,4 @@
-use file_encryptor::{decrypt, encrypt, file_exists, get_password, set_password};
+use crypt::{decrypt, encrypt, file_exists, get_password, set_password};
 use std::{env, process::exit};
 
 fn main() {
@@ -12,7 +12,6 @@ fn main() {
             "decrypt" => decrypt_handle(&args[2]),
             _ => print_help(),
         };
-        println!("{:?}", args);
     }
 }
 
@@ -41,7 +40,8 @@ fn decrypt_handle(filepath: &str) {
     if decrypt(filepath, passwd).is_ok() {
         println!("{filepath} has been decrypted successfully");
     } else {
-        println!("{filepath} isn't a valid encrypted file");
+        println!("Either your password isn't correct or '{filepath}'");
+        println!("isn't a valid encrypted file.");
     }
 }
 
@@ -51,10 +51,10 @@ fn print_help() {
     println!();
     println!("To encrypt a file, run `crypt encrypt path/to/file`");
     println!("You will be prompted to give a password. Your file");
-    println!("will be encrypted with the given password inplace");
+    println!("will be encrypted with the given password inplace.");
     println!();
     println!("To decrypt a file run `crypt decrypt path/to/file`");
     println!("It will ask you for a password which if correct will");
-    println!("will decrypt the file inplace");
+    println!("will decrypt the file inplace.");
     println!();
 }
